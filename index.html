@@ -1,0 +1,776 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Francisco Morales — Invoice Generator</title>
+
+<!-- html2pdf Library for PDF Generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+  :root{
+    --ink:#4b4138;
+    --line:#bdb8b2;
+    --paper:#fff;
+    --bg:#eeeae5;
+    --accent:#66594d;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:#333;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .app{max-width:1280px;margin:0 auto;padding:16px 20px}
+  
+  .toolbar{
+    position:sticky;top:0;z-index:50;background:rgba(238,234,229,.96);
+    padding:10px 0;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  }
+  .toolbar h1{font-size:18px;margin:0 8px 0 0;color:var(--ink);flex:1;font-weight:800}
+  
+  button, .btn-file-label{
+    border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer;
+    background:var(--accent);color:white;font-size:15px;min-height:44px;
+    display:inline-flex;align-items:center;justify-content:center;
+    text-decoration:none;box-sizing:border-box;
+  }
+  button.secondary, .btn-file-label.secondary{background:white;color:var(--ink);border:1px solid #c7c1ba}
+  button.danger{background:#9a4c45;color:white}
+  button.sm, .btn-file-label.sm{padding:8px 12px;font-size:13px;min-height:36px;margin-top:4px}
+  
+  .layout{display:grid;grid-template-columns:420px 1fr;gap:24px;align-items:start}
+  .panel{
+    background:#fff;border:1px solid #d6d0c9;border-radius:14px;padding:16px;
+    box-shadow:0 3px 12px rgba(0,0,0,.04);
+  }
+  .panel h2{font-size:15px;color:var(--ink);margin:0 0 12px}
+  .section{padding-bottom:16px;margin-bottom:16px;border-bottom:1px solid #e2ddd7}
+  .section:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+  
+  label{display:block;font-size:12px;font-weight:700;color:#665f58;margin:10px 0 4px}
+  input,textarea,select{
+    width:100%;border:1px solid #cfc9c2;border-radius:8px;padding:10px 12px;
+    font:15px inherit;background:#fff;color:#333;
+  }
+  select{
+    background-image: url("data:image/svg+xml;utf8,<svg fill='%2366594d' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='7 10l5 5 5-5z'/></svg>");
+    background-repeat: no-repeat;
+    background-position-x: 98%;
+    background-position-y: 50%;
+  }
+  textarea{min-height:80px;resize:vertical}
+  
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+  .rows-head,.row{
+    display:grid;grid-template-columns:1fr 105px 100px 36px;gap:6px;align-items:center
+  }
+  .rows-head{font-size:11px;font-weight:800;color:#777;margin-bottom:6px}
+  .row{margin-bottom:8px}
+  .row input{padding:8px;font-size:13px}
+  .price-input{
+    font-size:14px !important;
+    font-weight:700;
+    color:#111;
+    text-align:right;
+  }
+  .remove{padding:0;border-radius:8px;width:36px;height:38px;min-height:auto;font-size:18px}
+  .addrow{width:100%;margin-top:6px}
+  
+  .preview-wrap{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:20px;
+  }
+  .paper{
+    width:210mm;min-height:297mm;background:var(--paper);margin:0 auto;
+    padding:18mm 17mm 13mm;box-shadow:0 4px 18px rgba(0,0,0,.08);
+    color:#514941;
+  }
+  .top{display:grid;grid-template-columns:1fr 1fr;gap:15mm;align-items:flex-start}
+  .recipient h3{
+    margin:0 0 5px;font-family:Georgia,serif;font-size:22px;letter-spacing:.3px;
+    color:#51463c;line-height:1.0;
+  }
+  .recipient .small{font-family:"Courier New",monospace;font-size:13px;line-height:1.55}
+  
+  .artist{
+    text-align:right;font-family:Georgia,serif;font-weight:800;font-size:31px;
+    letter-spacing:1.5px;line-height:1.0;color:#554a40;margin-top:0;
+  }
+  .invoice-meta{margin-top:11mm}
+  .invoice-meta h2{font-family:Georgia,serif;font-size:25px;margin:0 0 9px}
+  .meta-line{font-family:"Courier New",monospace;font-size:13px;line-height:1.55}
+  .meta-label{display:inline-block;width:115px}
+  
+  .service-table{margin-top:28mm}
+  .service-table .head{
+    border-top:2px solid #514941;border-bottom:1px solid #b9b4af;
+    display:grid;grid-template-columns:1.35fr 1fr .55fr;padding:9px 4px;
+    font-family:Georgia,serif;font-weight:800;font-size:14px;
+  }
+  .service-table .line{
+    display:grid;grid-template-columns:1.35fr 1fr .55fr;
+    padding:11px 4px;border-bottom:1px solid #c8c4bf;
+    font-family:"Courier New",monospace;font-size:13px;min-height:37px;
+  }
+  .right{text-align:right}
+  
+  .notes{
+    text-align:center;font-family:"Courier New",monospace;font-size:12px;
+    line-height:1.5;margin:9mm 6mm 0;
+  }
+  .totals{margin:9mm 0 0 auto;width:45%;font-family:"Courier New",monospace;font-size:13px}
+  .total-line{display:flex;justify-content:space-between;padding:5px 0}
+  .grand{border-top:2px solid #514941;margin-top:5px;padding-top:8px;font-family:Georgia,serif;font-size:17px}
+  .footer{
+    text-align:center;font-family:"Courier New",monospace;font-size:12px;line-height:1.55;
+    margin-top:8mm;
+  }
+  .currency{white-space:nowrap}
+  .cust-actions{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+
+  @media(max-width:1024px){
+    .layout{grid-template-columns:1fr}
+    .paper{transform-origin:top left;}
+  }
+
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 0;
+    }
+    body {
+      background: #fff;
+      padding: 0;
+      margin: 0;
+    }
+    .toolbar, .panel, .no-print {
+      display: none !important;
+    }
+    .layout {
+      display: block;
+    }
+    .preview-wrap {
+      padding: 0;
+      overflow: visible;
+    }
+    .paper {
+      box-shadow: none;
+      margin: 0;
+      width: 100%;
+      min-height: auto;
+      padding: 18mm 17mm 13mm;
+      page-break-after: avoid;
+      page-break-inside: avoid;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toolbar no-print">
+    <h1>Francisco Morales</h1>
+    <button id="mailBtn" onclick="mailInvoice()">Mail Invoice</button>
+    <button id="printBtn" class="secondary" onclick="printInvoice()">Print Invoice</button>
+    <button class="secondary" onclick="newInvoice()">New invoice +1</button>
+  </div>
+
+  <div class="layout">
+    <aside class="panel no-print">
+      <div class="section">
+        <h2>Invoice / Recipient</h2>
+        
+        <label style="color:#2c5282">Select Saved Customer</label>
+        <select id="customerSelect" onchange="onSelectCustomer()"></select>
+        
+        <div class="cust-actions">
+          <button type="button" class="secondary sm" onclick="saveCustomerFromForm()">Save/Update Customer</button>
+          <button type="button" class="danger sm" onclick="deleteSelectedCustomer()">Delete Customer</button>
+        </div>
+
+        <div class="cust-actions" style="margin-top:4px">
+          <button type="button" class="secondary sm" onclick="exportCustomers()">Export Customers</button>
+          <label class="btn-file-label secondary sm">
+            Import Customers
+            <input type="file" id="importCustomerFile" accept=".json" onchange="importCustomers(event)" style="display:none">
+          </label>
+        </div>
+
+        <label>Venue / Artist / Company</label>
+        <input id="recipient" value="JAZZ CAFE ALTO">
+        <label>Customer Email</label>
+        <input id="customerEmail" type="email" placeholder="altojazzcafe@gmail.com" value="altojazzcafe@gmail.com">
+        <label>Attention / Hiring Person</label>
+        <input id="attention" value="Mr Ali">
+        <label>Street + House Number</label>
+        <input id="street" value="Korte Leidsedwarsstraat 115">
+        <label>Postcode + City</label>
+        <input id="city" value="1017 PX Amsterdam">
+
+        <div class="grid2">
+          <div><label>Invoice Date</label><input id="invoiceDate" type="date"></div>
+          <div><label>Reference</label><input id="reference" value="90011"></div>
+        </div>
+        <div class="grid2">
+          <div><label>Regards / Subject</label><input id="regards" value="Gig"></div>
+          <div><label>Invoice No.</label><input id="invoiceNo" value="20260010"></div>
+        </div>
+        <div style="font-size:11px;color:#777;margin-top:5px">Invoice numbers advance automatically when choosing “New invoice +1”.</div>
+        <label>Client No.</label><input id="clientNo" value="20230001">
+      </div>
+
+      <div class="section">
+        <h2>Performance Lines</h2>
+        <div class="rows-head"><span>Service</span><span>Date</span><span style="text-align:right">Price €</span><span></span></div>
+        <div id="editorRows"></div>
+        <button class="secondary addrow" onclick="addRow()">+ Add performance / date</button>
+      </div>
+
+      <div class="section">
+        <h2>Your Details</h2>
+        <div class="grid2">
+          <div><label>Name</label><input id="sellerName" value="Francisco Morales"></div>
+          <div><label>Phone</label><input id="phone" value="0622081250"></div>
+        </div>
+        <label>Address</label><input id="sellerAddress" value="Spoorlaan 2 1431 TL Aalsmeer">
+        <div class="grid2">
+          <div><label>Email</label><input id="email" value="franciscomorales777@gmail.com"></div>
+          <div><label>Website</label><input id="website" value="www.franciscomoralesmusic.com"></div>
+        </div>
+        <div class="grid3">
+          <div><label>KVK</label><input id="kvk" value="91284791"></div>
+          <div><label>IBAN</label><input id="iban" value="NL56INGB0003573753"></div>
+          <div><label>BTW-ID</label><input id="btw" value="NL004880252B84"></div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Bottom Payment / Legal Text</h2>
+        <label>Payment + Legal Text</label>
+        <textarea id="bottomText">Please pay this amount within 2 weeks to account number NL56INGB0003573753. Please do this stating the invoice number.This action does not create an employment relationship. Artist and/or company chooses not to make use of the artist scheme (art. 5a LB Act / art. 4 Decree of 24 December 1986). Artist and/or company chooses not to have wage tax paid for this performance and not being insured for employee insurance.</textarea>
+      </div>
+
+      <div class="section">
+        <h2>Tax</h2>
+        <label>VAT / BTW Percentage</label>
+        <input id="vat" type="number" step="0.1" value="9">
+      </div>
+    </aside>
+
+    <main class="preview-wrap">
+      <div class="paper" id="paper">
+        <div class="top">
+          <div>
+            <div class="recipient">
+              <h3 id="pRecipient"></h3>
+              <div class="small" id="pAttentionRow"></div>
+              <div class="small" id="pStreet"></div>
+              <div class="small" id="pCity"></div>
+            </div>
+            <div class="invoice-meta">
+              <h2>INVOICE</h2>
+              <div class="meta-line"><span class="meta-label">Date :</span><span id="pInvoiceDate"></span></div>
+              <div class="meta-line"><span class="meta-label">Reference :</span><span id="pReference"></span></div>
+              <div class="meta-line"><span class="meta-label">Regards :</span><span id="pRegards"></span></div>
+              <div class="meta-line"><span class="meta-label">Invoice No :</span><span id="pInvoiceNo"></span></div>
+              <div class="meta-line"><span class="meta-label">Client no :</span><span id="pClientNo"></span></div>
+            </div>
+          </div>
+          <div class="artist" id="pSellerName"></div>
+        </div>
+
+        <div class="service-table">
+          <div class="head"><div>SERVICE</div><div>DATE</div><div class="right">PRICE</div></div>
+          <div id="previewRows"></div>
+        </div>
+
+        <div class="totals">
+          <div class="total-line"><span>Sub-total :</span><span class="currency" id="pSubtotal"></span></div>
+          <div class="total-line"><span id="pVatLabel">9% Tax :</span><span class="currency" id="pVat"></span></div>
+          <div class="total-line grand"><span>TOTAL :</span><span class="currency" id="pTotal"></span></div>
+        </div>
+
+        <div class="notes" id="pBottomText"></div>
+
+        <div class="footer">
+          <div id="pFooter1"></div>
+          <div id="pFooter2"></div>
+          <div id="pFooter3"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const STORAGE_KEY = "franciscoInvoiceGenerator";
+const COUNTER_KEY = "franciscoInvoiceCounter";
+const CUSTOMERS_KEY = "franciscoInvoiceCustomers";
+
+function getTodayString(){
+  return new Date().toISOString().slice(0,10);
+}
+
+function getFormattedSubject() {
+  const invNum = $("invoiceNo").value || "Invoice";
+  const seller = $("sellerName").value || "Francisco Morales";
+  const recipient = $("recipient").value.trim() || "";
+  return recipient 
+    ? `Invoice ${invNum} - ${seller} - ${recipient}` 
+    : `Invoice ${invNum} - ${seller}`;
+}
+
+function getFormattedBody() {
+  const recipient = $("recipient").value.trim() || "Customer";
+  const invNum = $("invoiceNo").value || "";
+  const dateFormatted = dateDisplay($("invoiceDate").value);
+  const totalAmount = $("pTotal").textContent;
+  const seller = $("sellerName").value || "Francisco Morales";
+
+  return `Dear ${recipient},\n\nPlease find attached invoice ${invNum} dated ${dateFormatted} for the total amount of ${totalAmount}.\n\nKind regards,\n${seller}`;
+}
+
+let rows = [
+  {service:"Francisco Morales Quartet", date: getTodayString(), price: 90}
+];
+
+function euro(n){
+  return new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'}).format(n);
+}
+
+function dateDisplay(v){
+  if(!v) return "";
+  const [y,m,d]=v.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g,c=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+  }[c]));
+}
+
+/* ---------- Printing & Email Actions ---------- */
+
+function printInvoice() {
+  const origTitle = document.title;
+  document.title = getFormattedSubject();
+  window.print();
+  document.title = origTitle;
+}
+
+async function mailInvoice() {
+  const mailBtn = $("mailBtn");
+  const oldText = mailBtn.textContent;
+    
+  const customerEmail = $("customerEmail").value.trim();
+  if (!customerEmail) {
+    alert("Please enter a customer email address first.");
+    $("customerEmail").focus();
+    return;
+  }
+
+  const subjectString = getFormattedSubject();
+  const bodyString = getFormattedBody();
+  const filename = `${subjectString}.pdf`;
+
+  mailBtn.textContent = "Preparing PDF...";
+  mailBtn.disabled = true;
+
+  const element = $("paper");
+    
+  const origMinHeight = element.style.minHeight;
+  const origHeight = element.style.height;
+  const origOverflow = element.style.overflow;
+  const origBoxShadow = element.style.boxShadow;
+
+  element.style.minHeight = "296mm";
+  element.style.height = "296mm";
+  element.style.overflow = "hidden";
+  element.style.boxShadow = "none";
+
+  try {
+    const opt = {
+      margin:       0,
+      filename:     filename,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true, logging: false, scrollY: 0 },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:    { mode: 'none' }
+    };
+
+    const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+    const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+    // Download PDF for attachment
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // Open mail client with pre-filled To, Subject, and Body
+    const mailtoUrl = `mailto:${encodeURIComponent(customerEmail)}?subject=${encodeURIComponent(subjectString)}&body=${encodeURIComponent(bodyString)}`;
+    window.location.href = mailtoUrl;
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: subjectString,
+          text: bodyString
+        });
+      } catch (e) {}
+    }
+
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.error("Mail invoice error:", err);
+      alert("Could not generate PDF. Please use the Print button to save as PDF.");
+    }
+  } finally {
+    element.style.minHeight = origMinHeight;
+    element.style.height = origHeight;
+    element.style.overflow = origOverflow;
+    element.style.boxShadow = origBoxShadow;
+
+    mailBtn.textContent = oldText;
+    mailBtn.disabled = false;
+  }
+}
+
+/* ---------- Customer Management & Import/Export ---------- */
+
+function normalizeCustomerName(name){
+  return String(name || "").trim().toLowerCase().replace(/\s+/g," ");
+}
+
+function getCustomers(){
+  try { return JSON.parse(localStorage.getItem(CUSTOMERS_KEY) || "{}"); }
+  catch(e){ return {}; }
+}
+
+function saveCustomers(customers){
+  localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers));
+  populateCustomerDropdown();
+}
+
+function rememberCurrentCustomer(){
+  const nameKey = normalizeCustomerName($("recipient").value);
+  if(!nameKey) return;
+
+  const customers = getCustomers();
+  customers[nameKey] = {
+    recipient: $("recipient").value,
+    email: $("customerEmail").value,
+    attention: $("attention").value,
+    street: $("street").value,
+    city: $("city").value,
+    clientNo: $("clientNo").value,
+    reference: $("reference").value,
+    regards: $("regards").value
+  };
+  saveCustomers(customers);
+}
+
+function saveCustomerFromForm(){
+  if(!$("recipient").value.trim()){
+    alert("Please enter a Venue / artist / company name first.");
+    return;
+  }
+  rememberCurrentCustomer();
+  alert("Customer saved/updated successfully!");
+}
+
+function deleteSelectedCustomer(){
+  const select = $("customerSelect");
+  const key = select.value;
+  if(!key){
+    alert("Please select a customer from the dropdown to delete.");
+    return;
+  }
+  if(confirm("Are you sure you want to delete this customer?")){
+    const customers = getCustomers();
+    delete customers[key];
+    saveCustomers(customers);
+    select.value = "";
+    alert("Customer deleted.");
+  }
+}
+
+function exportCustomers(){
+  const customers = getCustomers();
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(customers, null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", `customers-backup-${getTodayString()}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+}
+
+function importCustomers(event){
+  const file = event.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const importedData = JSON.parse(e.target.result);
+      if(typeof importedData !== 'object' || importedData === null){
+        throw new Error("Invalid format");
+      }
+      
+      const currentCustomers = getCustomers();
+      let count = 0;
+
+      Object.keys(importedData).forEach(key => {
+        if(importedData[key] && importedData[key].recipient){
+          currentCustomers[key] = importedData[key];
+          count++;
+        }
+      });
+
+      saveCustomers(currentCustomers);
+      alert(`Successfully imported/merged ${count} customer(s)!`);
+    } catch(err) {
+      alert("Error importing file. Please ensure it is a valid customer JSON backup file.");
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = ''; // reset file input
+}
+
+function populateCustomerDropdown(){
+  const customers = getCustomers();
+  const select = $("customerSelect");
+  const currentVal = select.value;
+
+  select.innerHTML = '<option value="">-- New / Custom Customer --</option>';
+  
+  const keys = Object.keys(customers).sort();
+  keys.forEach(k => {
+    const c = customers[k];
+    const opt = document.createElement("option");
+    opt.value = k;
+    opt.textContent = c.recipient + (c.city ? ` (${c.city})` : '');
+    select.appendChild(opt);
+  });
+
+  select.value = currentVal;
+}
+
+function onSelectCustomer(){
+  const select = $("customerSelect");
+  const key = select.value;
+  if(!key) return;
+
+  const customers = getCustomers();
+  const c = customers[key];
+  if(c){
+    $("recipient").value = c.recipient || "";
+    $("customerEmail").value = c.email || "";
+    $("attention").value = c.attention || "";
+    $("street").value = c.street || "";
+    $("city").value = c.city || "";
+    $("clientNo").value = c.clientNo || "";
+    $("reference").value = c.reference || "";
+    $("regards").value = c.regards || "Gig";
+    render();
+  }
+}
+
+/* ---------- Invoice Number Memory ---------- */
+
+function invoiceNumberParts(value){
+  const str = String(value || "").trim();
+  const match = str.match(/^(.*?)(\d+)$/);
+  if(!match) return {prefix:"", number:0, width:0};
+  return {
+    prefix: match[1],
+    number: Number(match[2]),
+    width: match[2].length
+  };
+}
+
+function setInitialInvoiceCounter(){
+  const current = $("invoiceNo").value.trim();
+  if(!localStorage.getItem(COUNTER_KEY) && current){
+    localStorage.setItem(COUNTER_KEY, current);
+  }
+}
+
+function nextInvoiceNumber(){
+  const stored = localStorage.getItem(COUNTER_KEY);
+  const current = stored || $("invoiceNo").value.trim();
+
+  const parts = invoiceNumberParts(current);
+
+  if(parts.width === 0){
+    localStorage.setItem(COUNTER_KEY, "1");
+    return "1";
+  }
+
+  const next = parts.number + 1;
+  const result = parts.prefix + String(next).padStart(parts.width, "0");
+  localStorage.setItem(COUNTER_KEY, result);
+  return result;
+}
+
+/* ---------- Rows ---------- */
+
+function updateRowPrice(index, val){
+  rows[index].price = val === "" ? 0 : Number(val);
+  render();
+}
+
+function renderEditor(){
+  const box = $("editorRows");
+  box.innerHTML = "";
+
+  rows.forEach((r,i)=>{
+    const el = document.createElement("div");
+    el.className = "row";
+    const currentPrice = r.price !== undefined && r.price !== null ? r.price : 0;
+    el.innerHTML = `
+      <input value="${esc(r.service)}"
+        oninput="rows[${i}].service=this.value;render()">
+      <input type="date" value="${r.date}"
+        onchange="rows[${i}].date=this.value;render()">
+      <input type="number" class="price-input" min="0" step="0.01" value="${currentPrice}"
+        oninput="updateRowPrice(${i}, this.value)">
+      <button class="danger remove"
+        onclick="rows.splice(${i},1);renderEditor();render()">×</button>`;
+    box.appendChild(el);
+  });
+}
+
+function addRow(){
+  rows.push({service:"", date: getTodayString(), price: 0});
+  renderEditor();
+  render();
+}
+
+/* ---------- Rendering ---------- */
+
+function render(){
+  $("pRecipient").textContent = $("recipient").value;
+  
+  const attnValue = $("attention").value.trim();
+  $("pAttentionRow").textContent = attnValue ? `Attn. ${attnValue}` : "";
+
+  $("pStreet").textContent = $("street").value;
+  $("pCity").textContent = $("city").value;
+  $("pInvoiceDate").textContent = dateDisplay($("invoiceDate").value);
+  $("pReference").textContent = $("reference").value;
+  $("pRegards").textContent = $("regards").value;
+  $("pInvoiceNo").textContent = $("invoiceNo").value;
+  $("pClientNo").textContent = $("clientNo").value;
+  $("pSellerName").textContent = $("sellerName").value.toUpperCase();
+
+  const pr = $("previewRows");
+  pr.innerHTML = "";
+
+  let subtotal = 0;
+
+  rows.forEach(r=>{
+    const line = Number(r.price) || 0;
+    subtotal += line;
+
+    const d = document.createElement("div");
+    d.className = "line";
+    d.innerHTML = `
+      <div>${esc(r.service)}</div>
+      <div>${dateDisplay(r.date)}</div>
+      <div class="right">${euro(line)}</div>`;
+    pr.appendChild(d);
+  });
+
+  const vatRate = Number($("vat").value) || 0;
+  const tax = subtotal * vatRate / 100;
+  const total = subtotal + tax;
+
+  $("pSubtotal").textContent = euro(subtotal);
+  $("pVat").textContent = euro(tax);
+  $("pTotal").textContent = euro(total);
+  $("pVatLabel").textContent = `${vatRate}% Tax :`;
+
+  $("pBottomText").innerHTML =
+    $("bottomText").value.replace(/\n/g,"<br>");
+
+  $("pFooter1").textContent =
+    $("sellerAddress").value + " * T " + $("phone").value;
+
+  $("pFooter2").textContent =
+    $("email").value + " * " + $("website").value +
+    " * KVK " + $("kvk").value;
+
+  $("pFooter3").textContent =
+    "IBAN " + $("iban").value +
+    " * BTW-ID " + $("btw").value;
+}
+
+/* ---------- New Invoice ---------- */
+
+function newInvoice(){
+  rememberCurrentCustomer();
+
+  const newNumber = nextInvoiceNumber();
+
+  rows = [{service:"Francisco Morales Quartet", date: getTodayString(), price: 90}];
+
+  $("invoiceNo").value = newNumber;
+  $("invoiceDate").value = getTodayString();
+
+  renderEditor();
+  render();
+
+  setTimeout(()=>{
+    const first = document.querySelector("#editorRows input");
+    if(first) first.focus();
+  },50);
+}
+
+/* ---------- Event Listeners ---------- */
+
+$("recipient").addEventListener("blur", () => {
+  rememberCurrentCustomer();
+});
+
+["customerEmail","attention","street","city","clientNo","reference","regards"]
+  .forEach(id=>{
+    $(id).addEventListener("change", rememberCurrentCustomer);
+  });
+
+document.querySelectorAll("input,textarea").forEach(x=>{
+  x.addEventListener("input", render);
+});
+
+/* ---------- Startup ---------- */
+
+$("invoiceDate").value = getTodayString();
+
+setInitialInvoiceCounter();
+
+if (Object.keys(getCustomers()).length === 0) {
+  rememberCurrentCustomer();
+}
+
+populateCustomerDropdown();
+renderEditor();
+render();
+</script>
+</body>
+</html>
